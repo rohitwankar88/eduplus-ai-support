@@ -1,0 +1,17 @@
+Document: Profile and Contact Details Support
+Document ID: PROFILE-001
+
+Issue: Student wants to update their registered mobile number.
+
+Guidance:
+1. Log in to the official ERP portal using your authorized account.
+2. Look for Profile, My Account, or Personal Details.
+3. If an edit option is available, follow the portal's instructions to update your contact details.
+4. Complete any verification required by the official portal.
+5. If editing is unavailable, contact authorized ERP support staff to request the update.
+
+Safety rules:
+- Never share passwords or OTPs with the chatbot or support staff through unapproved channels.
+- The chatbot cannot update or verify live student records.
+- Menu names and available options may vary by ERP configuration.
+- This is fictional documentation for a portfolio project.

@@ -1,5 +1,6 @@
 
 from pathlib import Path
+import re
 
 from langchain_chroma import Chroma
 from langchain_ollama import ChatOllama, OllamaEmbeddings
@@ -41,7 +42,7 @@ MISSING_RECEIPT_RESPONSE = (
 
 
 # ============================================================
-# 2. INITIALIZE EMBEDDINGS, DATABASE AND LLM
+# 2. INITIALIZE TEST DATABASE AND LLM
 # ============================================================
 
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
@@ -52,10 +53,7 @@ db = Chroma(
     collection_name=COLLECTION_NAME,
 )
 
-llm = ChatOllama(
-    model="llama3.2:3b",
-    temperature=0,
-)
+llm = ChatOllama(model="llama3.2:3b", temperature=0)
 
 
 # ============================================================
@@ -63,47 +61,23 @@ llm = ChatOllama(
 # ============================================================
 
 def asks_about_missing_receipt(question):
-    """Identify questions about missing or unavailable receipts."""
-
     q = question.lower().replace("’", "'")
 
     receipt_terms = [
-        "receipt",
-        "invoice",
-        "payment proof",
+        "receipt", "invoice", "payment proof",
         "payment confirmation slip",
     ]
-
     missing_terms = [
-        "missing",
-        "not generated",
-        "not received",
-        "cannot download",
-        "can't download",
-        "unable to download",
-        "cannot find",
-        "can't find",
-        "unavailable",
-        "failed",
-        "didn't get",
-        "did not get",
-        "do not have",
-        "don't have",
-        "haven't received",
-        "have not received",
-        "not showing",
-        "doesn't show",
-        "does not show",
-        "not appearing",
-        "can't access",
-        "cannot access",
-        "unable to access",
-        "not available",
-        "cannot see",
-        "can't see",
-        "not visible",
-        "not displayed",
-        "no receipt",
+        "missing", "not generated", "not received",
+        "cannot download", "can't download",
+        "unable to download", "cannot find", "can't find",
+        "unavailable", "failed", "didn't get", "did not get",
+        "do not have", "don't have", "haven't received",
+        "have not received", "not showing", "doesn't show",
+        "does not show", "not appearing", "can't access",
+        "cannot access", "unable to access", "not available",
+        "cannot see", "can't see", "not visible",
+        "not displayed", "no receipt",
     ]
 
     return (
@@ -113,49 +87,22 @@ def asks_about_missing_receipt(question):
 
 
 def asks_for_live_record(question):
-    """
-    Detect requests for personal live ERP records.
-    General troubleshooting questions should remain answerable.
-    """
+    """Detect personal live-record requests without blocking troubleshooting."""
 
     q = question.lower().replace("’", "'")
 
     payment_terms = [
-        "payment",
-        "fee",
-        "fees",
-        "paid",
-        "transaction",
-        "money deducted",
-        "payment gateway",
+        "payment", "fee", "fees", "paid", "transaction",
+        "money deducted", "payment gateway",
     ]
-
     payment_status_terms = [
-        "status",
-        "confirmed",
-        "confirmation",
-        "verified",
-        "verify",
-        "received",
-        "processed",
-        "went through",
-        "gone through",
-        "go through",
-        "successful",
-        "succeed",
-        "succeeded",
-        "completed",
-        "cleared",
-        "credited",
-        "debited",
+        "status", "confirmed", "confirmation", "verified",
+        "verify", "received", "processed", "went through",
+        "gone through", "go through", "successful", "succeed",
+        "succeeded", "completed", "cleared", "credited", "debited",
     ]
-
     personal_reference = [
-        "my",
-        "mine",
-        "student's",
-        "students'",
-        "for me",
+        "my", "mine", "student's", "students'", "for me",
     ]
 
     asks_payment_status = (
@@ -165,44 +112,37 @@ def asks_for_live_record(question):
     )
 
     exam_terms = [
-        "exam",
-        "examination",
-        "result",
-        "marks",
-        "grade",
-        "score",
-        "passed",
-        "failed",
+        "exam", "examination", "result", "marks",
+        "grade", "score", "passed", "failed",
     ]
-
     asks_exam_record = (
         any(term in q for term in exam_terms)
         and any(term in q for term in personal_reference)
     )
 
-    attendance_terms = [
-        "attendance",
-        "present",
-        "absent",
-    ]
-
+    attendance_terms = ["attendance", "present", "absent"]
     attendance_record_terms = [
-        "current",
-        "updated",
-        "corrected",
-        "marked",
-        "record",
-        "status",
+        "current", "updated", "corrected", "marked",
+        "record", "status", "percentage", "history",
+    ]
+    troubleshooting_terms = [
+        "missing", "not showing", "not synchronized",
+        "not synchronised", "not syncing", "not syncing",
+        "troubleshoot", "how do i", "how can i",
+        "how should", "what should i do",
+        "what if", "error", "problem", "issue",
+        "incorrect", "wrong",
     ]
 
     asks_attendance_record = (
         any(term in q for term in attendance_terms)
         and any(term in q for term in attendance_record_terms)
         and any(term in q for term in personal_reference)
+        and not any(term in q for term in troubleshooting_terms)
     )
 
-    # Missing receipt troubleshooting must not be mistaken
-    # for a request to verify payment success.
+    # Missing-receipt questions are troubleshooting, not
+    # confirmation that a payment succeeded.
     if asks_about_missing_receipt(question):
         asks_payment_status = False
 
@@ -213,83 +153,64 @@ def asks_for_live_record(question):
     )
 
 
-def asks_library_activation_time(question):
-    """Identify library activation timeframe questions."""
+def asks_for_other_student_records(question):
+    """Block requests for another person's private ERP records."""
 
-    q = question.lower()
+    q = question.lower().replace("’", "'").replace("‘", "'")
 
-    asks_time = any(
-        term in q
-        for term in [
-            "how long",
-            "how many days",
-            "how many working days",
-            "how much time",
-            "timeframe",
-            "duration",
-            "take to activate",
-            "activation time",
-            "working days",
-        ]
+    other_person_terms = [
+        "another student", "other student", "different student",
+        "different student's", "different students",
+        "another student's", "other student's",
+        "someone else's", "someone elses", "other students",
+        "another students", "another learner", "other learner",
+        "different learner",
+    ]
+    record_terms = [
+        "fee", "fees", "payment", "receipt", "transaction",
+        "attendance", "exam result", "marks", "grade",
+        "student record", "personal details",
+    ]
+
+    return (
+        any(term in q for term in other_person_terms)
+        and any(term in q for term in record_terms)
     )
 
-    return "library" in q and asks_time
+
+def asks_library_activation_time(question):
+    q = question.lower()
+    time_terms = [
+        "how long", "how many days", "how many working days",
+        "how much time", "timeframe", "duration",
+        "take to activate", "activation time", "working days",
+    ]
+    return "library" in q and any(term in q for term in time_terms)
 
 
 def asks_library_activation_procedure(question):
-    """Identify library activation procedure questions."""
-
     q = question.lower()
-
-    asks_procedure = any(
-        term in q
-        for term in [
-            "how do i activate",
-            "how to activate",
-            "activate my library",
-            "activation procedure",
-            "activation process",
-            "enable my library",
-            "steps to activate",
-        ]
-    )
-
-    return "library" in q and asks_procedure
+    procedure_terms = [
+        "how do i activate", "how to activate",
+        "activate my library", "activation procedure",
+        "activation process", "enable my library",
+        "steps to activate",
+    ]
+    return "library" in q and any(term in q for term in procedure_terms)
 
 
 def asks_login_troubleshooting(question):
-    """Identify login troubleshooting questions."""
-
     q = question.lower().replace("’", "'")
-
     login_terms = [
-        "login",
-        "log in",
-        "sign in",
-        "signin",
-        "password",
-        "access my erp account",
-        "access my account",
-        "cannot access",
-        "can't access",
-        "unable to access",
-        "cannot get into",
-        "can't get into",
+        "login", "log in", "sign in", "signin", "password",
+        "access my erp account", "access my account",
+        "cannot access", "can't access", "unable to access",
+        "cannot get into", "can't get into",
     ]
-
     issue_terms = [
-        "troubleshoot",
-        "problem",
-        "issue",
-        "cannot",
-        "can't",
-        "unable",
-        "not working",
-        "failed",
-        "failure",
-        "locked",
-        "forgot password",
-        "password reset",
+        "troubleshoot", "problem", "issue", "cannot", "can't",
+        "unable", "not working", "failed", "failure", "locked",
+        "forgot password", "password reset",
     ]
 
     return (
@@ -302,41 +223,21 @@ def asks_login_troubleshooting(question):
 
 
 def asks_attendance_troubleshooting(question):
-    """Identify attendance viewing and issue/correction questions."""
-
     q = question.lower()
 
-    attendance_terms = [
-        "attendance",
-        "attendance record",
-    ]
-
+    attendance_terms = ["attendance", "present", "absent"]
     issue_terms = [
-        "error",
-        "incorrect",
-        "missing",
-        "wrong",
-        "correct",
-        "fix",
-        "troubleshoot",
-        "problem",
-        "issue",
-        "not showing",
-        "update",
-        "synchronization",
-        "synchronized",
-        "synchronised",
-        "synchronize",
-        "synchronise",
-        "sync",
+        "error", "incorrect", "missing", "wrong", "correct",
+        "fix", "troubleshoot", "problem", "issue",
+        "not showing", "update", "synchronization",
+        "synchronized", "synchronised", "synchronize",
+        "synchronise", "sync", "not recorded",
     ]
-
     viewing_terms = [
-        "check",
-        "view",
-        "see",
-        "check my attendance",
-        "attendance percentage",
+        "check", "view", "see", "show", "display",
+        "percentage", "history", "how do i find",
+        "how can i find", "how can i check",
+        "how do i check", "how can i view",
     ]
 
     return (
@@ -349,35 +250,18 @@ def asks_attendance_troubleshooting(question):
 
 
 def asks_attendance_viewing(question):
-    """Identify requests to view attendance information."""
-
     q = question.lower()
 
-    attendance_terms = [
-        "attendance",
-        "attendance record",
-    ]
-
+    attendance_terms = ["attendance", "attendance record"]
     viewing_terms = [
-        "check",
-        "view",
-        "see",
-        "show",
-        "display",
-        "percentage",
-        "how do i find",
-        "how can i find",
+        "check", "view", "see", "show", "display",
+        "percentage", "history", "how do i find",
+        "how can i find", "how can i check",
+        "how do i check", "how can i view",
     ]
-
     issue_terms = [
-        "missing",
-        "incorrect",
-        "wrong",
-        "error",
-        "fix",
-        "troubleshoot",
-        "problem",
-        "not showing",
+        "missing", "incorrect", "wrong", "error", "fix",
+        "troubleshoot", "problem", "not showing",
     ]
 
     return (
@@ -387,183 +271,126 @@ def asks_attendance_viewing(question):
     )
 
 
-
 # ============================================================
 # 4. RETRIEVE RELEVANT DOCUMENTATION
 # ============================================================
 
-
 def rerank_chunks(question, candidates):
-    """
-    Lightweight keyword-based reranker.
-
-    Each candidate is a (document, vector_score) tuple.
-    This combines vector relevance with keyword overlap.
-    """
-
-    import re
+    """Combine vector relevance with keyword overlap."""
 
     def tokenize(text):
-        return set(
-            re.findall(r"\b[a-z0-9]+\b", text.lower())
-        )
+        return set(re.findall(r"\b[a-z0-9]+\b", text.lower()))
 
     question_terms = tokenize(question)
-
-    # Ignore common words that provide little relevance signal.
     stop_words = {
         "a", "an", "the", "is", "are", "was", "were",
-        "do", "does", "did", "how", "what", "where",
-        "when", "why", "can", "could", "my", "me",
-        "i", "to", "for", "of", "in", "on", "and",
-        "or", "if", "it", "this", "that", "has", "have",
+        "do", "does", "did", "how", "what", "where", "when",
+        "why", "can", "could", "my", "me", "i", "to", "for",
+        "of", "in", "on", "and", "or", "if", "it", "this",
+        "that", "has", "have",
     }
-
     question_terms -= stop_words
 
     ranked = []
-
     for doc, vector_score in candidates:
         document_terms = tokenize(doc.page_content)
         overlap = question_terms & document_terms
-
-        if question_terms:
-            keyword_score = len(overlap) / len(question_terms)
-        else:
-            keyword_score = 0.0
-
-        combined_score = (
-            0.70 * vector_score
-            + 0.30 * keyword_score
+        keyword_score = (
+            len(overlap) / len(question_terms)
+            if question_terms else 0.0
         )
+        combined_score = 0.70 * vector_score + 0.30 * keyword_score
+        ranked.append((doc, vector_score, keyword_score, combined_score))
 
-        ranked.append(
-            (doc, vector_score, keyword_score, combined_score)
-        )
-
-    ranked.sort(
-        key=lambda item: item[3],
-        reverse=True,
-    )
-
+    ranked.sort(key=lambda item: item[3], reverse=True)
     return ranked
 
+
 def retrieve_context(question):
-    """Retrieve, filter, and keyword-rerank relevant documentation."""
-    question_lower = question.lower()
+    """Retrieve and rank relevant source documents."""
+
+    q = question.lower()
     source_filters = {
         "login_support.txt": [
-            "login", "log in", "sign in", "signin", "password", "locked out",
-            "access my erp account", "access my account",
+            "login", "log in", "sign in", "signin", "password",
+            "locked out", "access my erp account", "access my account",
             "cannot access my account", "can't access my account",
             "unable to access my account", "erp account",
         ],
-        "fee_support.txt": [
-            "fee", "payment", "receipt", "transaction", "paid", "pay",
-        ],
-        "attendance_support.txt": [
-            "attendance", "absent", "synchroniz",
-        ],
-        "library_support.txt": [
-            "library", "activation",
-        ],
-        "exam_support.txt": [
-            "exam", "examination", "marks", "result",
-        ],
+        "fee_support.txt": ["fee", "payment", "receipt", "transaction", "paid", "pay"],
+        "attendance_support.txt": ["attendance", "absent", "synchroniz", "present"],
+        "library_support.txt": ["library", "activation"],
+        "exam_support.txt": ["exam", "examination", "marks", "result"],
     }
+
     matching_sources = [
-        source
-        for source, keywords in source_filters.items()
-        if any(keyword in question_lower for keyword in keywords)
+        source for source, keywords in source_filters.items()
+        if any(keyword in q for keyword in keywords)
     ]
+
     search_kwargs = {"k": TOP_K}
     if len(matching_sources) == 1:
         search_kwargs["filter"] = {"source": matching_sources[0]}
+
     results = db.similarity_search_with_relevance_scores(
         question, **search_kwargs
     )
     if not results:
         return "", []
+
     best_score = max(score for _, score in results)
-    dynamic_threshold = max(
-        THRESHOLD, best_score - MAX_SCORE_GAP
-    )
+    dynamic_threshold = max(THRESHOLD, best_score - MAX_SCORE_GAP)
     qualifying = [
-        (doc, score)
-        for doc, score in results
+        (doc, score) for doc, score in results
         if score >= dynamic_threshold
     ]
     if not qualifying:
         return "", []
+
     ranked = rerank_chunks(question, qualifying)
     context_parts = []
     sources = []
-    for doc, vector_score, keyword_score, combined_score in ranked:
-        source = Path(
-            str(doc.metadata.get("source", "unknown"))
-        ).name
-        context_parts.append(
-            f"[Source: {source}]\n{doc.page_content}"
-        )
+
+    for doc, _, _, _ in ranked:
+        source = Path(str(doc.metadata.get("source", "unknown"))).name
+        context_parts.append(f"[Source: {source}]\n{doc.page_content}")
         if source not in sources:
             sources.append(source)
-    return "\n\n---\n\n".join(context_parts), sources# 5. ANSWER PROMPT
+
+    return "\n\n---\n\n".join(context_parts), sources
+
+
+# ============================================================
+# 5. ANSWER PROMPT
 # ============================================================
 
-answer_prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """
-You are a careful support assistant for a fictional
-educational institution's ERP system.
+answer_prompt = ChatPromptTemplate.from_messages([
+    (
+        "system",
+        """
+You are a careful support assistant for a fictional educational
+institution's ERP system.
 
 Answer only from the supplied retrieved documentation.
-
-STRICT RULES:
-
-1. Never invent URLs, menu items, buttons, procedures,
-   IDs, PINs, passwords, or system capabilities.
-
-2. Never claim to access live ERP records.
-
-3. Never claim that a student's payment, examination
-   result, or attendance record has been verified.
-
-4. Refer individual live-record verification to
-   the authorized support team.
-
-5. Do not invent undocumented library activation procedures.
-
-6. If documentation says library activation takes two
-   working days, give that exact timeframe.
-
-7. For finding fee receipts, use documented navigation only.
-
-8. Missing-receipt troubleshooting may include verifying
-   authorized payment records, checking ERP payment updates,
-   checking receipt-generation status, checking logs only
-   when authorized, and creating a support ticket.
-
-9. Troubleshooting does not prove that payment succeeded.
-
-10. Never request passwords or OTPs.
-
-11. Attendance corrections must be escalated to authorized
-    staff. Never claim to modify attendance.
-
-12. If the context is insufficient, say so and refer the
-    user to authorized support.
-
-13. Use clear, concise English.
-
-14. The documents are fictional portfolio data, not
-    official institutional policy.
-            """,
-        ),
-        (
-            "human",
-            """
+Never invent procedures, URLs, IDs, passwords, or capabilities.
+Never claim to access or verify live ERP records.
+Refer personal live-record verification to authorized support.
+Never invent undocumented library activation procedures.
+If documentation says library activation takes two working days,
+give that exact timeframe.
+For finding fee receipts, use documented navigation only.
+Missing-receipt troubleshooting does not prove payment succeeded.
+Never request passwords or OTPs.
+Attendance corrections must be escalated to authorized staff.
+Never claim to modify attendance.
+If context is insufficient, say so and refer the user to support.
+Use clear, concise English.
+These documents are fictional portfolio data, not official policy.
+        """,
+    ),
+    (
+        "human",
+        """
 Question:
 {question}
 
@@ -571,10 +398,9 @@ Retrieved documentation:
 {context}
 
 Answer using only the available documentation.
-            """,
-        ),
-    ]
-)
+        """,
+    ),
+])
 
 answer_chain = answer_prompt | llm
 
@@ -584,35 +410,16 @@ answer_chain = answer_prompt | llm
 # ============================================================
 
 def login_troubleshooting_answer(context, sources):
-    """Return documented login troubleshooting steps."""
-
     context_lower = context.lower()
-
-    has_login_source = any(
-        source.lower() == "login_support.txt"
-        for source in sources
-    )
-
-    required_phrases = [
-        "verify the username",
-        "correct portal",
-        "password-reset process",
-        "account lockout",
+    has_source = "login_support.txt" in sources
+    required = [
+        "verify the username", "correct portal",
+        "password-reset process", "account lockout",
         "authorized support team",
     ]
 
-    if (
-        not has_login_source
-        or not all(
-            phrase in context_lower
-            for phrase in required_phrases
-        )
-    ):
-        return (
-            NO_RELEVANT_CONTEXT,
-            sources,
-            "DOCUMENTATION INSUFFICIENT",
-        )
+    if not has_source or not all(p in context_lower for p in required):
+        return NO_RELEVANT_CONTEXT, sources, "DOCUMENTATION INSUFFICIENT"
 
     answer = (
         "According to the login troubleshooting documentation:\n\n"
@@ -623,25 +430,13 @@ def login_troubleshooting_answer(context, sources):
         "5. Escalate unresolved issues to the authorized support team.\n\n"
         "Never share passwords or OTPs, and never bypass authentication."
     )
-
-    return (
-        answer,
-        sources,
-        "ANSWER GENERATED FROM DOCUMENTATION",
-    )
+    return answer, sources, "ANSWER GENERATED FROM DOCUMENTATION"
 
 
 def attendance_troubleshooting_answer(context, sources):
-    """Return documented attendance troubleshooting steps."""
-
     context_lower = context.lower()
-
-    has_attendance_source = any(
-        source.lower() == "attendance_support.txt"
-        for source in sources
-    )
-
-    required_phrases = [
+    has_source = "attendance_support.txt" in sources
+    required = [
         "student id and relevant date",
         "submitted by the authorized staff member",
         "pending synchronization",
@@ -649,110 +444,89 @@ def attendance_troubleshooting_answer(context, sources):
         "escalate corrections to authorized staff",
     ]
 
-    if (
-        not has_attendance_source
-        or not all(
-            phrase in context_lower
-            for phrase in required_phrases
-        )
-    ):
-        return (
-            NO_RELEVANT_CONTEXT,
-            sources,
-            "DOCUMENTATION INSUFFICIENT",
-        )
+    if not has_source or not all(p in context_lower for p in required):
+        return NO_RELEVANT_CONTEXT, sources, "DOCUMENTATION INSUFFICIENT"
 
     answer = (
         "According to the attendance troubleshooting documentation:\n\n"
         "1. Confirm the student ID and relevant date.\n"
-        "2. Check whether attendance was submitted by the "
-        "authorized staff member.\n"
+        "2. Check whether attendance was submitted by the authorized staff member.\n"
         "3. Verify whether the record is pending synchronization.\n"
-        "4. Collect relevant details without requesting "
-        "unnecessary personal data.\n"
+        "4. Collect relevant details without requesting unnecessary personal data.\n"
         "5. Escalate corrections to authorized staff.\n\n"
         "Attendance must not be modified without authorization."
     )
-
-    return (
-        answer,
-        sources,
-        "ANSWER GENERATED FROM DOCUMENTATION",
-    )
+    return answer, sources, "ANSWER GENERATED FROM DOCUMENTATION"
 
 
-def missing_receipt_answer(context, sources):
-    """Return documented missing-receipt troubleshooting."""
-
+def attendance_viewing_answer(context, sources):
     context_lower = context.lower()
+    has_source = "attendance_support.txt" in sources
+    required = [
+        "authorized student account",
+        "attendance section",
+        "attendance percentage",
+        "subject-wise attendance history",
+    ]
 
-    has_fee_source = any(
-        source.lower() == "fee_support.txt"
-        for source in sources
-    )
-
-    has_troubleshooting = (
-        "verify the transaction status" in context_lower
-        and "receipt generation is pending or failed"
-        in context_lower
-    )
-
-    if not has_fee_source or not has_troubleshooting:
+    if not has_source or not all(p in context_lower for p in required):
         return (
-            MISSING_RECEIPT_RESPONSE,
+            "The available support documentation does not explain "
+            "how to view attendance in the ERP. Please contact the "
+            "authorized support team for instructions.",
             sources,
-            "DOCUMENTATION INSUFFICIENT",
+            "DOCUMENTED LIMITATION",
         )
 
     answer = (
-        "The support documentation recommends these "
-        "troubleshooting steps for a missing receipt:\n\n"
-        "1. Ask authorized staff to verify the transaction "
-        "status in authorized payment records.\n"
+        "To view your attendance:\n\n"
+        "1. Log in to the ERP portal using your authorized student account.\n"
+        "2. Open the Attendance section from the dashboard.\n"
+        "3. Select the relevant semester or date range, if available.\n"
+        "4. Review your attendance percentage and subject-wise attendance history.\n"
+        "5. If information is missing or incorrect, contact authorized support staff.\n\n"
+        "I cannot access or verify live student records."
+    )
+    return answer, sources, "ANSWER GENERATED FROM DOCUMENTATION"
+
+
+def missing_receipt_answer(context, sources):
+    context_lower = context.lower()
+    has_source = "fee_support.txt" in sources
+    has_steps = (
+        "verify the transaction status" in context_lower
+        and "receipt generation is pending or failed" in context_lower
+    )
+
+    if not has_source or not has_steps:
+        return MISSING_RECEIPT_RESPONSE, sources, "DOCUMENTATION INSUFFICIENT"
+
+    answer = (
+        "The support documentation recommends these troubleshooting steps "
+        "for a missing receipt:\n\n"
+        "1. Ask authorized staff to verify the transaction status in authorized payment records.\n"
         "2. Check whether the ERP system received the payment update.\n"
         "3. Check whether receipt generation is pending or failed.\n"
         "4. Check application logs only if authorized.\n"
         "5. If unresolved, create a support ticket for investigation.\n\n"
-        "These are general troubleshooting steps and do not "
-        "confirm that your payment succeeded. Contact the "
-        "authorized support team for assistance."
+        "These are general troubleshooting steps and do not confirm that "
+        "your payment succeeded. Contact the authorized support team for assistance."
     )
-
-    return (
-        answer,
-        sources,
-        "ANSWER GENERATED FROM DOCUMENTATION",
-    )
+    return answer, sources, "ANSWER GENERATED FROM DOCUMENTATION"
 
 
 def fee_receipt_location_answer(context, sources):
-    """Return receipt navigation only when the source supports it."""
-
     context_lower = context.lower()
-
-    has_fee_source = any(
-        source.lower() == "fee_support.txt"
-        for source in sources
-    )
-
-    required_phrases = [
+    required = [
         "log in to the erp portal",
         "payment history or fee receipts",
         "select the relevant payment",
     ]
 
-    if (
-        not has_fee_source
-        or not all(
-            phrase in context_lower
-            for phrase in required_phrases
-        )
+    if "fee_support.txt" not in sources or not all(
+        p in context_lower for p in required
     ):
-        return (
-            NO_RELEVANT_CONTEXT,
-            sources,
-            "DOCUMENTATION INSUFFICIENT",
-        )
+        return NO_RELEVANT_CONTEXT, sources, "DOCUMENTATION INSUFFICIENT"
 
     answer = (
         "According to the available support documentation:\n\n"
@@ -760,100 +534,17 @@ def fee_receipt_location_answer(context, sources):
         "2. Open the Fees or Fee Management section.\n"
         "3. Look for Payment History or Fee Receipts.\n"
         "4. Select the relevant payment to view the receipt.\n\n"
-        "If the receipt is unavailable, contact the authorized "
-        "support team. These general instructions do not verify "
-        "an individual payment."
+        "If the receipt is unavailable, contact the authorized support team. "
+        "These general instructions do not verify an individual payment."
     )
-
-    return (
-        answer,
-        sources,
-        "ANSWER GENERATED FROM DOCUMENTATION",
-    )
+    return answer, sources, "ANSWER GENERATED FROM DOCUMENTATION"
 
 
 # ============================================================
 # 7. MAIN ANSWER FUNCTION
 # ============================================================
 
-
-def asks_for_other_student_records(question):
-    """Detect requests for another student's private records."""
-    q = question.lower().replace("’", "'").replace("‘", "'")
-
-    other_person_terms = [
-        "another student",
-        "other student",
-        "different student",
-        "different student's",
-        "different students",
-        "another student's",
-        "other student's",
-        "someone else's",
-        "someone elses",
-        "other students",
-        "another students",
-        "learner",
-        "another learner",
-        "other learner",
-        "different learner",
-    ]
-
-    record_terms = [
-        "fee",
-        "fees",
-        "payment",
-        "receipt",
-        "transaction",
-        "attendance",
-        "exam result",
-        "marks",
-        "grade",
-        "student record",
-        "personal details",
-    ]
-
-    has_other_person = any(
-        term in q for term in other_person_terms
-    )
-    has_record = any(
-        term in q for term in record_terms
-    )
-
-    has_student_id = (
-        "student id" in q or "student number" in q
-    )
-
-    own_record_terms = [
-        "my fee",
-        "my payment",
-        "my receipt",
-        "my attendance",
-        "my grade",
-        "my marks",
-        "my exam result",
-        "my own",
-        "for me",
-        "mine",
-    ]
-
-    explicitly_own_record = any(
-        term in q for term in own_record_terms
-    )
-
-    return (
-        (has_other_person and has_record)
-        or (
-            has_student_id
-            and has_record
-            and not explicitly_own_record
-        )
-    )
-
-
-
 def answer_with_test_db(question):
-    # Block requests for another student's private records.
     if asks_for_other_student_records(question):
         return (
             "I cannot disclose another student's private records. "
@@ -861,146 +552,76 @@ def answer_with_test_db(question):
             [],
             "PRIVACY REQUEST BLOCKED",
         )
-    # A. Block requests for live individual records.
-    if asks_for_live_record(question):
-        return (
-            LIVE_RECORD_RESPONSE,
-            [],
-            "LIVE RECORD NOT AVAILABLE",
-        )
 
-    # B. Retrieve relevant documentation.
+    if asks_for_live_record(question):
+        return LIVE_RECORD_RESPONSE, [], "LIVE RECORD NOT AVAILABLE"
+
     context, sources = retrieve_context(question)
 
-    # C. Handle missing receipt questions.
     if asks_about_missing_receipt(question):
         return missing_receipt_answer(context, sources)
 
-    # D. No relevant documentation.
     if not context.strip():
-        return (
-            NO_RELEVANT_CONTEXT,
-            [],
-            "NO RELEVANT CONTEXT",
-        )
+        return NO_RELEVANT_CONTEXT, [], "NO RELEVANT CONTEXT"
 
     q = question.lower()
     context_lower = context.lower()
 
-
-    # E. Deterministic login troubleshooting.
     if asks_login_troubleshooting(question):
         return login_troubleshooting_answer(context, sources)
 
-    # F. Attendance viewing is not documented.
     if asks_attendance_viewing(question):
-        return (
-            "The available support documentation does not explain "
-            "how to view attendance in the ERP. Please contact "
-            "the authorized support team for instructions.",
-            sources,
-            "DOCUMENTED LIMITATION",
-        )
+        return attendance_viewing_answer(context, sources)
 
-    # G. Deterministic attendance troubleshooting.
     if asks_attendance_troubleshooting(question):
         return attendance_troubleshooting_answer(context, sources)
 
-
-    # G. Deterministic library activation timeframe.
     if asks_library_activation_time(question):
-        has_library_source = any(
-            source.lower() == "library_support.txt"
-            for source in sources
-        )
-
         if (
-            has_library_source
+            "library_support.txt" in sources
             and "two working days" in context_lower
         ):
             return (
-                "Library account activation takes two working "
-                "days, according to the available support "
-                "documentation.",
+                "Library account activation takes two working days, "
+                "according to the available support documentation.",
                 sources,
                 "ANSWER GENERATED FROM DOCUMENTATION",
             )
 
-    # H. Library activation procedure is undocumented.
     if asks_library_activation_procedure(question):
-        has_library_source = any(
-            source.lower() == "library_support.txt"
-            for source in sources
+        undocumented = any(
+            phrase in context_lower
+            for phrase in [
+                "does not describe the library account activation",
+                "procedure is not documented",
+                "procedure not documented",
+            ]
         )
-
-        procedure_is_undocumented = (
-            "does not describe the library account activation"
-            in context_lower
-            or "procedure is not documented" in context_lower
-            or "procedure not documented" in context_lower
-        )
-
-        if has_library_source and procedure_is_undocumented:
+        if "library_support.txt" in sources and undocumented:
             return (
-                "The library account activation procedure is "
-                "not documented in the available support "
-                "information. Please contact the authorized "
-                "support team for instructions.",
+                "The library account activation procedure is not documented "
+                "in the available support information. Please contact the "
+                "authorized support team for instructions.",
                 sources,
                 "DOCUMENTED LIMITATION",
             )
 
-    # I. Finding a fee receipt.
     asks_receipt_location = (
         "receipt" in q
-        and any(
-            term in q
-            for term in [
-                "where",
-                "find",
-                "locate",
-                "access",
-                "get",
-                "view",
-            ]
-        )
+        and any(term in q for term in ["where", "find", "locate", "access", "get", "view"])
         and not asks_about_missing_receipt(question)
     )
-
     if asks_receipt_location:
         return fee_receipt_location_answer(context, sources)
 
-    # J. Generate a grounded answer for other questions.
     try:
-        response = answer_chain.invoke(
-            {
-                "question": question,
-                "context": context,
-            }
-        )
-
+        response = answer_chain.invoke({"question": question, "context": context})
         answer = response.content.strip()
-
         if not answer:
-            return (
-                FALLBACK,
-                sources,
-                "EMPTY MODEL RESPONSE",
-            )
-
-        return (
-            answer,
-            sources,
-            "ANSWER GENERATED FROM CONTEXT",
-        )
-
+            return FALLBACK, sources, "EMPTY MODEL RESPONSE"
+        return answer, sources, "ANSWER GENERATED FROM CONTEXT"
     except Exception:
-        # Avoid exposing internal exception details to users.
-        return (
-            FALLBACK,
-            sources,
-            "MODEL ERROR",
-        )
+        return FALLBACK, sources, "MODEL ERROR"
 
 
 # ============================================================
@@ -1008,7 +629,6 @@ def answer_with_test_db(question):
 # ============================================================
 
 if __name__ == "__main__":
-
     print("\nTESTING CHATBOT WITH NEW DATABASE")
     print(f"Test database: {DB_DIR}")
     print(f"Collection: {COLLECTION_NAME}")
@@ -1023,6 +643,7 @@ if __name__ == "__main__":
         "Tell me my exam marks.",
         "I paid my fees. Was the payment confirmed?",
         "Did my transaction go through?",
+        "Tell me another student's fee payment status.",
         "How do I activate my library access?",
         "How long does library account activation take?",
         "How many working days does library activation take?",
@@ -1037,20 +658,18 @@ if __name__ == "__main__":
         "What should I do if my attendance record is missing?",
         "How should staff troubleshoot a missing attendance record?",
         "What if attendance has not synchronized?",
+        "How can I check my attendance percentage and history?",
+        "How can I check my attendance?",
     ]
 
     for question in questions:
         answer, sources, status = answer_with_test_db(question)
-
         print("\n" + "=" * 65)
         print(f"Question: {question}")
         print(f"Support check: {status}")
         print("\nAnswer:")
         print(answer)
-        print(
-            "\nSources:",
-            ", ".join(sources) if sources else "None",
-        )
+        print("\nSources:", ", ".join(sources) if sources else "None")
 
     print("\n" + "=" * 65)
     print("Test completed.")

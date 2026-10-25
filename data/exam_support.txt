@@ -13,3 +13,15 @@ Troubleshooting steps:
 Safety rules:
 - Never invent or disclose unverified examination results.
 - This is fictional documentation for a portfolio project.
+
+Issue: Student wants to check the examination timetable.
+
+Guidance:
+1. Log in to the official ERP portal using your authorized account.
+2. Look for the Examination, Academics, or Notices section.
+3. Check for a published examination timetable or schedule.
+4. If the timetable is unavailable, contact the authorized examination team.
+
+Safety rules:
+- Do not invent examination dates, times, or schedules.
+- Only treat officially published timetables as confirmed.

@@ -13,3 +13,16 @@ Troubleshooting steps:
 Safety rules:
 - Never modify attendance without authorization.
 - This is fictional documentation for a portfolio project.
+
+Issue: How to view attendance percentage and history.
+
+Troubleshooting steps:
+1. Log in to the ERP portal using your authorized student account.
+2. Open the Attendance section from the dashboard.
+3. Select the relevant semester or date range, if available.
+4. Review the attendance percentage and subject-wise attendance history.
+5. If the information is missing or incorrect, contact authorized support staff.
+
+Note:
+Menu names may vary depending on the ERP configuration.
+The chatbot cannot access or verify live student records.
