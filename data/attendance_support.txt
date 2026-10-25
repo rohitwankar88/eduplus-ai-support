@@ -1,0 +1,15 @@
+Document: Attendance Troubleshooting
+Document ID: ATT-001
+
+Issue: Attendance record is missing or incorrect.
+
+Troubleshooting steps:
+1. Confirm the student ID and relevant date.
+2. Check whether attendance was submitted by the authorized staff member.
+3. Verify whether the record is pending synchronization.
+4. Collect relevant details without requesting unnecessary personal data.
+5. Escalate corrections to authorized staff.
+
+Safety rules:
+- Never modify attendance without authorization.
+- This is fictional documentation for a portfolio project.

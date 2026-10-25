@@ -1,0 +1,20 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+chroma_db/
+.pytest_cache/
+# Local test databases and backups
+chroma_db_test_step11/
+chroma_db_backup*/
+ollama_models/
+uploaded_docs/
+.env.*
+
+# Local backup files
+app/*.backup*
+
+.gitignore.backup*
+
+# Local evaluation output
+app/last_evaluation.txt

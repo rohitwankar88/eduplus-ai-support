@@ -1,0 +1,18 @@
+Document: Library Account Support
+Document ID: LIB-001
+
+Issue: How long does library account activation take?
+
+Resolution:
+Library account activation takes two working days.
+If the account is still inactive after two working days,
+contact the authorized support team.
+
+Important limitation:
+This document does not describe the library account activation
+procedure. Do not invent activation pages, buttons, forms,
+IDs, PINs, passwords, or other steps.
+If asked how to activate an account, explain that the procedure
+is not documented and direct the user to the authorized support team.
+
+Note: Fictional documentation for an AI portfolio project.

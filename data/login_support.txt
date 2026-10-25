@@ -1,0 +1,16 @@
+Document: Login Troubleshooting
+Document ID: LOGIN-001
+
+Issue: User cannot log in to the ERP portal.
+
+Troubleshooting steps:
+1. Verify the username and registered account status.
+2. Check whether the user is accessing the correct portal.
+3. Ask the user to use the official password-reset process.
+4. Check for account lockout or service outages.
+5. Escalate unresolved issues to the authorized support team.
+
+Safety rules:
+- Never ask for passwords or OTPs.
+- Never bypass authentication.
+- This is fictional documentation for a portfolio project.

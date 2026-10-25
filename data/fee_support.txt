@@ -1,0 +1,28 @@
+Document: Fee Management and Receipt Support
+Document ID: FEE-001
+
+Issue 1: Where can a student find a fee payment receipt?
+
+Resolution:
+1. Log in to the ERP portal using your authorized account.
+2. Open the Fees or Fee Management section.
+3. Look for Payment History or Fee Receipts.
+4. Select the relevant payment to view the receipt.
+5. If the receipt is unavailable, contact the authorized support team.
+
+Issue 2: Payment successful, but receipt not generated.
+
+Troubleshooting steps:
+1. Verify the transaction status in authorized payment records.
+2. Check whether the ERP system received the payment update.
+3. Verify whether receipt generation is pending or failed.
+4. Check application logs if authorized.
+5. If unresolved, create a support ticket for investigation.
+
+Safety rules:
+- Never claim a payment succeeded without verification.
+- Never ask users for passwords or OTPs.
+- Never claim a refund or payment correction is complete unless verified.
+- The instructions above are general guidance, not confirmation of an actual student's payment or receipt.
+
+Note: Fictional documentation for an AI portfolio project. Not official Eduplus documentation.

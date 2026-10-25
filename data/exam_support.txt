@@ -1,0 +1,15 @@
+Document: Exam Portal Troubleshooting
+Document ID: EXAM-001
+
+Issue: Student cannot view examination results.
+
+Troubleshooting steps:
+1. Verify the student is using the correct portal.
+2. Check whether results have officially been published.
+3. Verify the student's access permissions.
+4. Check for portal errors or service outages.
+5. Escalate unresolved issues to the authorized examination team.
+
+Safety rules:
+- Never invent or disclose unverified examination results.
+- This is fictional documentation for a portfolio project.
